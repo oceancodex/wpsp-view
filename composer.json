@@ -1,0 +1,41 @@
+{
+	"name": "oceancodex/wpsp-view",
+	"version": "8.2.0",
+	"description": "WordPress Starter Plugin - View",
+	"keywords": [
+	],
+	"license": "MIT",
+	"require": {
+		"php": "^8.2",
+		"illuminate/view": "^v11.16.0"
+	},
+	"config": {
+		"sort-packages": true
+	},
+	"autoload": {
+		"psr-4": {
+			"WPSPCORE\\View\\": "src/"
+		},
+		"files": [
+		]
+	},
+	"autoload-dev": {
+		"psr-4": {
+			"WPSPCORE\\View\\Tests\\": "tests/"
+		}
+	},
+	"authors": [
+		{
+			"name": "OceanCodex",
+			"email": "contact@oceancodex.com"
+		}
+	],
+	"scripts": {
+		"post-autoload-dump": [
+		],
+		"post-root-package-install": [
+		],
+		"post-create-project-cmd": [
+		]
+	}
+}
