@@ -16,13 +16,46 @@ use Throwable;
 
 class Blade {
 
-	public array         $viewPaths;
-	public string        $cachePath;
-	public Container     $container;
-	public Factory       $instance;
-	public static ?Blade $BLADE = null;
+	public $mainPath;
+	public $rootNamespace;
+	public $prefixEnv;
+	public $customProperties;
 
-	public function __construct(array $viewPaths, string $cachePath) {
+	/** @var \WPSPCORE\Funcs */
+	public $funcs;
+
+	public $viewPaths;
+	public $cachePath;
+
+	/**
+	 * @var Container
+	 */
+	public $container;
+	/**
+	 * @var Factory
+	 */
+	public $instance;
+
+
+	/**
+	 * @var Blade|null
+	 */
+	public static $BLADE = null;
+
+	public function __construct(
+		$mainPath = null,
+		$rootNamespace = null,
+		$prefixEnv = null,
+		$customProperties = [],
+		$viewPaths = [],
+		$cachePath = '/cached/views'
+	) {
+		$this->mainPath         = $mainPath;
+		$this->rootNamespace    = $rootNamespace;
+		$this->prefixEnv        = $prefixEnv;
+		$this->customProperties = $customProperties;
+		$this->funcs            = $customProperties['funcs'] ?? null;
+
 		$this->viewPaths = $viewPaths;
 		$this->cachePath = $cachePath;
 
@@ -30,24 +63,29 @@ class Blade {
 		$this->instance  = $this->createFactory();
 	}
 
-	public function view(): Factory {
+	/**
+	 * @return Factory
+	 */
+	public function view() {
 		return $this->instance;
 	}
 
-	public function render(string $string, array $data = [], bool $deleteCachedView = true): string {
+	public function render($string, $data = [], $deleteCachedView = true) {
 		$prevContainerInstance = Container::getInstance();
 		Container::setInstance($this->container);
 
 		$component = new class($string) extends Component {
+
 			protected string $template;
 
-			public function __construct(string $template) {
+			public function __construct($template) {
 				$this->template = $template;
 			}
 
 			public function render(): string {
 				return $this->template;
 			}
+
 		};
 
 		$resolvedView = $component->resolveView();
@@ -75,12 +113,17 @@ class Blade {
 			: '';
 	}
 
-	protected function createFactory(): Factory {
+	/**
+	 * @return Factory
+	 */
+	protected function createFactory() {
 		$fs         = new Filesystem();
 		$dispatcher = new Dispatcher($this->container);
 
 		$viewResolver  = new EngineResolver();
 		$bladeCompiler = new BladeCompiler($fs, $this->cachePath);
+
+		$this->registerDirectives($bladeCompiler);
 
 		$viewResolver->register('blade', function() use ($bladeCompiler) {
 			return new CompilerEngine($bladeCompiler);
@@ -103,6 +146,29 @@ class Blade {
 		});
 
 		return $viewFactory;
+	}
+
+	/**
+	 * @param BladeCompiler $bladeCompiler
+	 */
+	protected function registerDirectives($bladeCompiler) {
+		// Định nghĩa @can
+		$bladeCompiler->directive('can', function($expression) {
+			$authFunction = '\\' . $this->funcs->_getRootNamespace() . '\Funcs';
+
+			if (preg_match('/^["\']?([^"\']+)\|([^"\']+)["\']?$/iu', $expression, $matches)) {
+				$guard      = "'" . trim($matches[1]) . "'";
+				$permission = "'" . trim($matches[2]) . "'";
+				return "<?php if($authFunction::auth($guard)->check() && $authFunction::auth($guard)->user()->can({$permission})): ?>";
+			}
+
+			return "<?php if($authFunction::auth()->check() && $authFunction::auth()->user()->can({$expression})): ?>";
+		});
+
+		// Định nghĩa @endcan
+		$bladeCompiler->directive('endcan', function() {
+			return '<?php endif; ?>';
+		});
 	}
 
 }
