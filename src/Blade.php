@@ -24,22 +24,31 @@ class Blade {
 	/** @var \WPSPCORE\Funcs */
 	public $funcs;
 
-	public array  $viewPaths;
-	public string $cachePath;
+	public $viewPaths;
+	public $cachePath;
 
-	public Container $container;
-	public Factory   $instance;
+	/**
+	 * @var Container
+	 */
+	public $container;
+	/**
+	 * @var Factory
+	 */
+	public $instance;
 
 
-	public static ?Blade $BLADE = null;
+	/**
+	 * @var Blade|null
+	 */
+	public static $BLADE = null;
 
 	public function __construct(
 		$mainPath = null,
 		$rootNamespace = null,
 		$prefixEnv = null,
 		$customProperties = [],
-		array $viewPaths = [],
-		string $cachePath = '/cached/views'
+		$viewPaths = [],
+		$cachePath = '/cached/views'
 	) {
 		$this->mainPath         = $mainPath;
 		$this->rootNamespace    = $rootNamespace;
@@ -54,11 +63,14 @@ class Blade {
 		$this->instance  = $this->createFactory();
 	}
 
-	public function view(): Factory {
+	/**
+	 * @return Factory
+	 */
+	public function view() {
 		return $this->instance;
 	}
 
-	public function render(string $string, array $data = [], bool $deleteCachedView = true): string {
+	public function render($string, $data = [], $deleteCachedView = true) {
 		$prevContainerInstance = Container::getInstance();
 		Container::setInstance($this->container);
 
@@ -66,7 +78,7 @@ class Blade {
 
 			protected string $template;
 
-			public function __construct(string $template) {
+			public function __construct($template) {
 				$this->template = $template;
 			}
 
@@ -101,7 +113,10 @@ class Blade {
 			: '';
 	}
 
-	protected function createFactory(): Factory {
+	/**
+	 * @return Factory
+	 */
+	protected function createFactory() {
 		$fs         = new Filesystem();
 		$dispatcher = new Dispatcher($this->container);
 
@@ -133,7 +148,10 @@ class Blade {
 		return $viewFactory;
 	}
 
-	protected function registerDirectives(BladeCompiler $bladeCompiler): void {
+	/**
+	 * @param BladeCompiler $bladeCompiler
+	 */
+	protected function registerDirectives($bladeCompiler) {
 		// Định nghĩa @can
 		$bladeCompiler->directive('can', function($expression) {
 			$authFunction = '\\' . $this->funcs->_getRootNamespace() . '\Funcs';

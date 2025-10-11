@@ -15,7 +15,7 @@ class BladeCompilerWithSourceMap extends BladeCompiler {
 
 			// Đọc SOURCE inline ở đầu file nguồn nếu có
 			if ($this->files->exists($path)) {
-				$head = (string) $this->files->get($path);
+				$head = $this->files->get($path);
 				if ($head !== '') {
 					if (preg_match('/SOURCE:\s*(.+?)\s*\*\//u', $head, $m) && !empty($m[1])) {
 						$maybe = trim($m[1]);
