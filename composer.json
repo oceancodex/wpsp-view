@@ -1,13 +1,13 @@
 {
 	"name": "oceancodex/wpsp-view",
-	"version": "8.4.0",
+	"version": "8.0.0",
 	"description": "WordPress Starter Plugin - View",
 	"keywords": [
 	],
 	"license": "MIT",
 	"require": {
-		"php": "^8.4",
-		"illuminate/view": "^v12.28.1"
+		"php": "^8.0",
+		"illuminate/view": "^v8.83.27"
 	},
 	"config": {
 		"sort-packages": true
