@@ -13,110 +13,39 @@ use Illuminate\View\Engines\EngineResolver;
 use Illuminate\View\Factory;
 use Illuminate\View\FileViewFinder;
 use Throwable;
+use WPSPCORE\Base\BaseInstances;
 
-class Blade {
+class Blade extends BaseInstances {
 
-	public $mainPath;
-	public $rootNamespace;
-	public $prefixEnv;
-	public $customProperties;
+	public $factory   = null;
+	public $container = null;
+	public $viewPaths = null;
+	public $cachePath = null;
 
-	/** @var \WPSPCORE\Funcs */
-	public $funcs;
-
-	public $viewPaths;
-	public $cachePath;
-
-	/**
-	 * @var Container
-	 */
-	public $container;
-	/**
-	 * @var Factory
-	 */
-	public $instance;
-
-
-	/**
-	 * @var Blade|null
-	 */
-	public static $BLADE = null;
-
-	public function __construct(
-		$mainPath = null,
-		$rootNamespace = null,
-		$prefixEnv = null,
-		$customProperties = [],
-		$viewPaths = [],
-		$cachePath = '/cached/views'
-	) {
-		$this->mainPath         = $mainPath;
-		$this->rootNamespace    = $rootNamespace;
-		$this->prefixEnv        = $prefixEnv;
-		$this->customProperties = $customProperties;
-		$this->funcs            = $customProperties['funcs'] ?? null;
-
-		$this->viewPaths = $viewPaths;
-		$this->cachePath = $cachePath;
-
+	public function afterConstruct() {
+		$this->viewPaths = $this->extraParams['view_paths'];
+		$this->cachePath = $this->extraParams['cache_path'];
 		$this->container = new Container();
-		$this->instance  = $this->createFactory();
+		$this->factory   = $this->createFactory();
+
+		$this->shareVariables();
+	}
+
+	/*
+	 *
+	 */
+
+	public function set($name, $value) {
+		$this->{$name} = $value;
+		return $this;
 	}
 
 	/**
+	 * Create view factory instance.
+	 *
 	 * @return Factory
 	 */
-	public function view() {
-		return $this->instance;
-	}
-
-	public function render($string, $data = [], $deleteCachedView = true) {
-		$prevContainerInstance = Container::getInstance();
-		Container::setInstance($this->container);
-
-		$component = new class($string) extends Component {
-
-			protected string $template;
-
-			public function __construct($template) {
-				$this->template = $template;
-			}
-
-			public function render(): string {
-				return $this->template;
-			}
-
-		};
-
-		$resolvedView = $component->resolveView();
-		if (!is_string($resolvedView)) {
-			return '';
-		}
-
-		$view = $this->instance->make($resolvedView, $data);
-
-		try {
-			$result = tap($view->render(), function() use ($view, $deleteCachedView, $prevContainerInstance) {
-				if ($deleteCachedView) {
-					unlink($view->getPath());
-				}
-				Container::setInstance($prevContainerInstance);
-			});
-
-		}
-		catch (Throwable $e) {
-			return '';
-		}
-
-		return is_string($result)
-			? $result
-			: '';
-	}
-
-	/**
-	 * @return Factory
-	 */
-	protected function createFactory() {
+	private function createFactory() {
 		$fs         = new Filesystem();
 		$dispatcher = new Dispatcher($this->container);
 
@@ -149,9 +78,11 @@ class Blade {
 	}
 
 	/**
+	 * Register custom blade directives.
+	 *
 	 * @param BladeCompiler $bladeCompiler
 	 */
-	protected function registerDirectives($bladeCompiler) {
+	private function registerDirectives($bladeCompiler) {
 		// Định nghĩa @can
 		$bladeCompiler->directive('can', function($expression) {
 			$authFunction = '\\' . $this->funcs->_getRootNamespace() . '\Funcs';
@@ -169,6 +100,92 @@ class Blade {
 		$bladeCompiler->directive('endcan', function() {
 			return '<?php endif; ?>';
 		});
+	}
+
+
+	/**
+	 * Share variables to all views.
+	 * @return void
+	 */
+	private function shareVariables() {
+		// Share custom variables to all views.
+		$shareVariables = [];
+		$shareClass     = '\\' . $this->funcs->_getRootNamespace() . '\\app\\View\\Share';
+		$shareVariables = array_merge($shareVariables, $shareClass::instance()->variables());
+//		$shareVariables = array_merge($shareVariables, ['notice' => $notice]);
+		$this->getFactory()->share($shareVariables);
+
+		// Share current view name to all views.
+		$this->getFactory()->composer('*', function($view) {
+			global $notice;
+			$view->with('current_view_name', $view->getName());
+			$view->with('notice', $notice);
+		});
+	}
+
+	/*
+	 *
+	 */
+
+	/**
+	 * Get view factory instance.
+	 *
+	 * @return Factory
+	 */
+	public function getFactory() {
+		return $this->factory;
+	}
+
+	/**
+	 * Render template.
+	 *
+	 * @param string $string
+	 * @param array  $data
+	 * @param bool   $deleteCachedView
+	 *
+	 * @return string
+	 */
+	public function render($string, $data = [], $deleteCachedView = true) {
+		$prevContainerInstance = Container::getInstance();
+		Container::setInstance($this->container);
+
+		$component = new class($string) extends Component {
+
+			protected string $template;
+
+			public function __construct($template) {
+				$this->template = $template;
+			}
+
+			public function render(): string {
+				return $this->template;
+			}
+
+		};
+
+		$resolvedView = $component->resolveView();
+		if (!is_string($resolvedView)) {
+			return '';
+		}
+
+		$view = $this->factory->make($resolvedView, $data);
+
+		try {
+			$result = tap($view->render(), function() use ($view, $deleteCachedView, $prevContainerInstance) {
+				if ($deleteCachedView) {
+					unlink($view->getPath());
+				}
+				Container::setInstance($prevContainerInstance);
+			});
+
+		}
+		catch (Throwable $e) {
+			return '';
+		}
+
+		return is_string($result)
+			? $result
+			: '';
 	}
 
 }
