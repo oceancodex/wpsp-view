@@ -112,13 +112,14 @@ class Blade extends BaseInstances {
 		$shareVariables = [];
 		$shareClass     = '\\' . $this->funcs->_getRootNamespace() . '\\app\\View\\Share';
 		$shareVariables = array_merge($shareVariables, $shareClass::instance()->variables());
-		global $notice;
-		$shareVariables = array_merge($shareVariables, ['notice' => $notice]);
+//		$shareVariables = array_merge($shareVariables, ['notice' => $notice]);
 		$this->getFactory()->share($shareVariables);
 
 		// Share current view name to all views.
 		$this->getFactory()->composer('*', function($view) {
+			global $notice;
 			$view->with('current_view_name', $view->getName());
+			$view->with('notice', $notice);
 		});
 	}
 
