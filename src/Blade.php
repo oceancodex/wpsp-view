@@ -102,7 +102,6 @@ class Blade extends BaseInstances {
 		});
 	}
 
-
 	/**
 	 * Share variables to all views.
 	 * @return void
